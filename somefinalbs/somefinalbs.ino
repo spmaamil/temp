@@ -5,6 +5,7 @@ unsigned long timer2;
 int curPos;
 boolean board[4][20]; 
 int lives = 3;
+//int 
 void setup() 
 {
   curPos = 0;
@@ -54,12 +55,11 @@ void updateGame()
     }
   }
   for(int k = 0; k < 4; k++)
+  {
     temp[k][0] = false;
-    
-  //shift[0] = new bool[20];
-  /* TODO: FIX THIS */
-  if(abs(random())%2 == 0) 
-    temp[abs(random())%4][0] = true;
+    if(random(0,100) < 20)
+      temp[k][0] = true;
+  }
 
   for(int r = 0; r < 4; r++)
   {
@@ -91,26 +91,27 @@ void drawToLCD()
   int tempPos = (abs(curPos/4) % 4);
   LcdDriver.setCursor(19,tempPos);
   LcdDriver.print("<");
-  ///LcdDriver.setCursor(0,0);
-  ///LcdDriver.print(lives);
+  LcdDriver.setCursor(0,0);
+    LcdDriver.print((char)(lives + 48));
   
 }
 void loop() {
-  if(lives != 0)
+  if(lives > 0)
   {
-    if(millis() - timer >= 200)
+    if(millis() - timer >= 500)
     {
       updateGame();
       drawToLCD();      
-      timer += 200;
+      timer += 500;
     }
 
   }
-  else
+  else if(lives == 0)
   {
     //drawToLCD();
     LcdDriver.setCursor(19,(abs(curPos/4) % 4));
     LcdDriver.print("X");
+    lives = -1;
   }
   
   // put your main code here, to run repeatedly:
