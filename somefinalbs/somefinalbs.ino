@@ -1,10 +1,14 @@
 #include <LiquidCrystal.h>
 LiquidCrystal LcdDriver(11,9,5,6,7,8);
 unsigned long timer;
-unsigned long timer2;
 int curPos;
 boolean board[4][20]; 
+int snake[2];
+int fruitPos[2];
+int snakeState;
+int snakeCount = 0;
 int lives = 3;
+int updateSpeed = 500;
 enum ButtonState { Idle, Wait, Low };
 enum GameState { GameA, GameB };
 
@@ -30,11 +34,12 @@ void setup()
   
   
 
+  
   BS = Idle;
   Game = GameA;
+  snakeState = 0;
 
   timer = millis();
-  timer2 = millis();
   ButtonTime = millis();
 
 }
@@ -56,7 +61,7 @@ void MonitorB()
     curPos += 1;
 }
 
-void updateGame()
+void updateGameA()
 {  
   int pos = abs(curPos/4) % 4;
   boolean temp[4][20];
@@ -86,26 +91,96 @@ void updateGame()
     lives -= 1;
 }
 
+void updateGameB()
+{
+
+  int pos = abs(curPos/4) % 4;
+  
+  if(fruitPos[0] == snake[0] && fruitPos[1] == snake[1])
+  {
+    fruitPos[0] = random(0,4);
+    fruitPos[1] = random(0,20);
+    snakeCount+=1;
+    updateSpeed -= 50;
+  }
+  if(pos == 0)
+  {
+    snake[0] = snake[0] - 1;
+    snake[1] = snake[1];
+  }
+  else if(pos == 1)
+  {
+    snake[0] = snake[0];
+    snake[1] = snake[1] - 1;
+  }
+  else if(pos == 2)
+  {
+    snake[0] = snake[0] + 1;
+    snake[1] = snake[1];
+  }
+  else if(pos == 3)
+  {
+    snake[0] = snake[0];
+    snake[1] = snake[1] + 1;
+  }
+  if(snake[0] == -1 || snake[0] == 5)
+  {
+    snakeState = 2;
+    return;
+  }
+  else if(snake[1] == -1 || snake[1] == 20)
+  {
+    snakeState = 2;
+    return;
+  }
+  if(snakeCount == 10)
+  {
+    snakeState = 1;
+    return;
+  }
+}
 
 void drawToLCD()
 {
   LcdDriver.clear();
 
-  for(int r = 0; r < 4; r++)
+  
+  if(Game == GameA)
   {
-    for(int k = 0; k < 20; k++)
+    int tempPos = (abs(curPos/4) % 4);
+    LcdDriver.setCursor(19,tempPos);
+    LcdDriver.print("<");
+    LcdDriver.setCursor(0,0);
+    LcdDriver.print((char)(lives + 48));
+
+    for(int r = 0; r < 4; r++)
     {
-        LcdDriver.setCursor(k,r);
-        if(board[r][k])
-          LcdDriver.print("*");
+      for(int k = 0; k < 20; k++)
+      {
+          LcdDriver.setCursor(k,r);
+          if(board[r][k])
+            LcdDriver.print("*");
+      }
     }
   }
-    
-  int tempPos = (abs(curPos/4) % 4);
-  LcdDriver.setCursor(19,tempPos);
-  LcdDriver.print("<");
-  LcdDriver.setCursor(0,0);
-    LcdDriver.print((char)(lives + 48));
+  else
+  {    
+    int tempPos = (abs(curPos/4) % 4);
+    LcdDriver.setCursor(0,0);
+    LcdDriver.print(snakeCount);
+    LcdDriver.setCursor(snake[1],snake[0]);
+    if(tempPos == 0)
+      LcdDriver.print("^");
+    else if(tempPos == 1)
+      LcdDriver.print("<");
+    else if(tempPos == 2)
+      LcdDriver.print("v");
+    else
+      LcdDriver.print(">");
+    LcdDriver.setCursor(fruitPos[1],fruitPos[0]);
+    LcdDriver.print("X");
+  }
+  
   
 }
 
@@ -122,15 +197,38 @@ void ResetGame()
   
   timer = millis();
 
+  curPos = 0;
+  snake[0] = 2;
+  snake[1] = 10;
+        
+  snakeState = 0;
+  snakeCount = 0; 
+  fruitPos[0] = random(0,4);
+  fruitPos[1] = random(0,20);
+  if(Game == GameA)
+  {
+    updateSpeed = 500;
+  }
+  else 
+  {
+    updateSpeed = 1000;
+  }
 }
 
 void ChangeGame()
 {
-  if(Game == GameA)
-    Game = GameB;
-  else 
-    Game = GameA;
   ResetGame();
+  if(Game == GameA)
+  {
+    Game = GameB;
+    updateSpeed = 1000;
+  }
+  else 
+  {
+    Game = GameA;
+    updateSpeed = 500;
+  }
+  
 }
 
 void loop() 
@@ -140,24 +238,51 @@ void loop()
     ResetGame();
   else if(state == 3)
     ChangeGame();
-  
-  if(lives > 0)
-  {
-    if(millis() - timer >= 500)
-    {
-      updateGame();
-      drawToLCD();      
-      timer += 500;
-    }
 
-  }
-  else if(lives == 0)
+  if(GameA == Game)
   {
-    //drawToLCD();
-    LcdDriver.setCursor(19,(abs(curPos/4) % 4));
-    LcdDriver.print("X");
-    lives = -1;
+    if(lives > 0)
+    {
+      if(millis() - timer >= updateSpeed)
+      {
+        updateGameA();
+        drawToLCD();      
+        timer += updateSpeed;
+      }
+  
+    }
+    else if(lives == 0)
+    {
+      //drawToLCD();
+      LcdDriver.setCursor(19,(abs(curPos/4) % 4));
+      LcdDriver.print("X");
+      lives = -1;
+    }
   }
+  else 
+  {
+    if(snakeState == 0)
+    {
+      if(millis() - timer >= updateSpeed)
+      {
+        updateGameB();
+        drawToLCD();      
+        timer += updateSpeed;
+      }
+    }
+    else if(snakeState == 1)
+    {
+      LcdDriver.setCursor(0,0);
+      LcdDriver.print("You won!");
+    }
+    else if(snakeState == 2)
+    {
+      LcdDriver.setCursor(0,0);
+      LcdDriver.print("You lost!");
+    }
+  }
+  
+  
   
   // put your main code here, to run repeatedly:
   
@@ -193,7 +318,7 @@ int ButtonNextState(int state)//Checks the state of the button
         {//if it is low
             if(state == HIGH)//if the button state is high
                 BS = Idle;//if the state is idle
-      else if(millis() - ButtonTime < 500)
+      else if(millis() - ButtonTime < 250)
         return 2;
       else
         return 3;
